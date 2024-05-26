@@ -1,3 +1,4 @@
+const contactUs = require('../utils/mail');
 const {Order} = require('./order.model');
 const {TrackingEvent} = require('./trackingEvent.model');
 
@@ -10,6 +11,7 @@ exports.createTrackingEvent = async (req, res) => {
       const trackingEvent = new TrackingEvent({
         status,
         location,
+        orderId
       });
   
       await trackingEvent.save();
@@ -42,17 +44,24 @@ exports.createTrackingEvent = async (req, res) => {
     }
   };
   
-  // Update a tracking event
   exports.updateTrackingEvent = async (req, res) => {
     try {
       const { trackingEventId } = req.params;
       const { status, location } = req.body;
   
       const trackingEvent = await TrackingEvent.findById(trackingEventId);
-      
+  
       if (!trackingEvent) {
         return res.status(404).json({ message: 'Tracking event not found' });
       }
+  
+      const order = await Order.findById(trackingEvent.orderId).populate('user').populate('products.product');
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+  
+      const user = order.user;
+      const product = order.products.find(p => p.product._id.toString() === trackingEvent.orderId.toString());
   
       trackingEvent.status = status;
       trackingEvent.location = location;
@@ -60,19 +69,49 @@ exports.createTrackingEvent = async (req, res) => {
   
       await trackingEvent.save();
   
+      // Constructing the email content
+      const name = `${user.firstName} ${user.lastName}`;
+      const sub = 'Order Status Updated';
+      const msg = `
+      Hi ${name},
+  
+      Your order status has been updated.
+  
+      Order Details:
+      Product Name: ${product.product.title}
+      Quantity: ${product.quantity}
+      Status: ${status}
+      Location: ${location}
+  
+      We will mail you the tracking details once your order is shipped.
+  
+      Best regards,
+      BookStore`;
+  
+      try {
+        await contactUs({
+          name,
+          email: user.email,
+          sub,
+          msg,
+        });
+      } catch (error) {
+        console.log('Error sending email: ' + error);
+        return res.status(500).send('Error sending email');
+      }
+  
       res.status(200).json({ message: 'Tracking event updated successfully', trackingEvent });
     } catch (error) {
       res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
   };
   
-  // Delete a tracking event
   exports.deleteTrackingEvent = async (req, res) => {
     try {
       const { trackingEventId, orderId } = req.params;
   
       const trackingEvent = await TrackingEvent.findById(trackingEventId);
-      
+  
       if (!trackingEvent) {
         return res.status(404).json({ message: 'Tracking event not found' });
       }
@@ -86,3 +125,4 @@ exports.createTrackingEvent = async (req, res) => {
       res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
   };
+  

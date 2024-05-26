@@ -15,6 +15,10 @@ const trackingEventSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  orderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order',
+  }
 });
 
 const TrackingEvent = mongoose.model('TrackingEvent', trackingEventSchema);
