@@ -55,6 +55,5 @@ exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
   if (!user) {
     return next(new ErrorHander("User not found", 404));
   }
-  // Return the user details and file details to the frontend
   res.status(200).json({ user});
 });
